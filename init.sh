@@ -4,7 +4,7 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 set -ex
 exec <>/dev/console
-exec agetty -L 115200 -a root tty2 &
+agetty -L 115200 -a root tty2 &
 ############### mount sysfs ###############
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
@@ -175,10 +175,4 @@ sync && sleep 1
 
 ############### reboot ###############
 
-if [[ $$ -eq 1 ]] ; then
-    reboot -f
-else
-    exit 0
-fi
-echo "Init done!"
-exec sleep inf
+reboot -f
