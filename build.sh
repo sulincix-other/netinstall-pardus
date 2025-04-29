@@ -56,7 +56,7 @@ rm -rf  work/chroot/lib/modules/*/kernel/drivers/bluetooth
 rm -rf  work/chroot/lib/modules/*/kernel/sound
 
 ###################### compress modules ########################
-find lib/modules/ -iname "*.ko" | sed "s/^/gzip -9 /g" | sh -x
+find work/chroot/lib/modules/ -iname "*.ko" | sed "s/^/gzip -9 /g" | sh -x
 for kernel in $(ls lib/modules/) ; do
     chroot work/chroot depmod -a $kernel
 done
