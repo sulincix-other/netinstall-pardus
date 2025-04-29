@@ -175,4 +175,5 @@ sync && sleep 1
 
 ############### reboot ###############
 
-reboot -f
+busybox reboot -f
+exec sleep inf
