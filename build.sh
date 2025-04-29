@@ -57,3 +57,19 @@ rm -rf  work/chroot/lib/modules/*/kernel/sound
 ###################### create initramfs ########################
 cd work/chroot
 find . | cpio -o -H newc | gzip -9 > ../iso/initrd.img
+
+###################### create iso image ########################
+cd ../iso
+cat > boot/grub/grub.cfg <<EOF
+insmod all_video
+terminal_output console
+terminal_input console
+menuentry "Pardus Network Install (Automated)" --class linux {
+    linux /linux quiet
+    initrd /initd.img
+}
+EOF
+# create iso
+cd ../
+grub-mkrescue iso -o pardus-netinstall.iso --fonts="" --install-modules="linux normal fat all_video" --compress=xz --locales=""
+
