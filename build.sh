@@ -2,6 +2,7 @@
 set -ex
 ###################### create base system ########################
 mkdir -p work/chroot work/iso
+ln -s sid /usr/share/debootstrap/scripts/yirmiuc-deb
 debootstrap --variant minbase --include "usr-is-merged usrmerge" yirmiuc-deb work/chroot https://depo.pardus.org.tr/pardus
 cat > work/chroot/etc/apt/sources.list <<EOF
 ### The Official Pardus Package Repositories ###
