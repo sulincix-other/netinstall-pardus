@@ -133,6 +133,7 @@ else
     chroot /target apt install -yq grub-pc || bash
     chroot /target grub-install /dev/${DISK} --target="i386-pc" || bash
 fi
+chroot /target grub-mkconfig -o /boot/grub/grub.cfg
 sync && sleep 1
 
 ############### configure ###############
@@ -175,7 +176,9 @@ sync && sleep 1
 ############### reboot ###############
 
 if [[ $$ -eq 1 ]] ; then
-        echo _sub > /proc/sysrq-trigger
-    else
-        exit 0
+    reboot -f
+else
+    exit 0
 fi
+echo "Init done!"
+exec sleep inf
