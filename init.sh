@@ -31,9 +31,10 @@ for dev in $(ls /sys/class/net/ | grep -v lo) ; do
 done
 echo "nameserver 1.1.1.1" > /etc/hosts
 echo "nameserver 8.8.8.8" >> /etc/hosts
+dropbear -R -E 2>/dev/null || true
 sync && sleep 1
 
-############### partitioning ###############
+############### detect disk ###############
 # detect primary disk
 DISK=""
 for d in $(ls /sys/block | grep -v "^dm" | grep -v "^fd"); do
@@ -56,12 +57,15 @@ fi
 export DISK
 export DISKX
 
+############### run top init ###############
 if grep "^init=" /proc/cmdline >/dev/null ; then
-    init=$(cat /proc/cmdline | tr " " "\n"  | grep "^init" | sed "s/^init=//g")
-    wget -O /tmp/init.sh || bash
-    bash -ex /tmp/init.sh
+    init="$(cat /proc/cmdline | tr ' ' '\n'  | grep '^init' | sed 's/^init=//g')"
+    wget -O /tmp/init.sh $init || bash
+    bash -ex /tmp/init.sh top
+    export init
 fi
 
+############### part and format disk ###############
 mkdir -p /target
 if [ -d /sys/firmware/efi ] ; then
     parted -s /dev/"${DISK}" mktable gpt || bash
@@ -119,8 +123,6 @@ for dir in dev sys proc ; do
 done
 # kernel
 chroot /target apt install -yq linux-image-amd64 || bash
-# desktop
-chroot /target apt install -yq pardus-xfce-desktop || bash
 sync && sleep 1
 
 ############### install grub ###############
@@ -169,11 +171,23 @@ echo "::1     localhost ip6-localhost ip6-loopback" >> /target/etc/hosts
 echo "ff02::1 ip6-allnodes" >> /target/etc/hosts
 echo "ff02::2 ip6-allrouters" >> /target/etc/hosts
 
-chroot /target useradd -m pardus -c "Pardus" -G cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,bluetooth,scanner,lpadmin -s /bin/bash -p $(openssl passwd -6 pardus) || bash
+############### run bottom init ###############
+if grep "^init=" /proc/cmdline >/dev/null ; then
+    init="$(cat /proc/cmdline | tr ' ' '\n'  | grep '^init' | sed 's/^init=//g')"
+    wget -O /tmp/init.sh $init || bash
+    bash -ex /tmp/init.sh bottom
+    export init
+fi
+############### install additional packages ###############
+# desktop
+chroot /target apt install -yq pardus-xfce-desktop || bash
+sync && sleep 1
 
+############### create user ###############
+chroot /target useradd -m pardus -c "Pardus" -G cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,bluetooth,scanner,lpadmin -s /bin/bash -p $(openssl passwd -6 pardus) || bash
 sync && sleep 1
 
 ############### reboot ###############
-
-busybox reboot -f
+reboot -f
+echo "init done"
 exec sleep inf

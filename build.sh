@@ -28,7 +28,7 @@ chroot work/chroot apt full-upgrade -yq
 ###################### install packages ########################
 chroot work/chroot apt install -yq --no-install-recommends \
      parted debootstrap busybox e2fsprogs linux-image-amd64 \
-     kmod nano
+     kmod nano dropbear
 
 ###################### insert init ########################
 install ./init.sh work/chroot/init
