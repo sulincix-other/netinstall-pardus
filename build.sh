@@ -60,6 +60,7 @@ find . | cpio -o -H newc | gzip -9 > ../iso/initrd.img
 
 ###################### create iso image ########################
 cd ../iso
+mkdir -p boot/grub
 cat > boot/grub/grub.cfg <<EOF
 insmod all_video
 terminal_output console
