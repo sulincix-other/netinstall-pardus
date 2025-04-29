@@ -3,6 +3,8 @@ source /etc/profile
 export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 set -ex
+exec <>/dev/console
+exec agetty -L 115200 -a root tty2 &
 ############### mount sysfs ###############
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
@@ -27,6 +29,8 @@ for dev in $(ls /sys/class/net/ | grep -v lo) ; do
     busybox ip link set up $dev || true
     busybox udhcpc -i $dev -s /usr/share/udhcpc/default.script || true
 done
+echo "nameserver 1.1.1.1" > /etc/hosts
+echo "nameserver 8.8.8.8" >> /etc/hosts
 sync && sleep 1
 
 ############### partitioning ###############
@@ -47,6 +51,15 @@ if echo ${DISK} | grep nvme ; then
     DISKX=${DISK}p
 else
     DISKX=${DISK}
+fi
+
+export DISK
+export DISKX
+
+if grep "^init=" /proc/cmdline >/dev/null ; then
+    init=$(cat /proc/cmdline | tr " " "\n"  | grep "^init" | sed "s/^init=//g")
+    wget -O /tmp/init.sh || bash
+    bash -ex /tmp/init.sh
 fi
 
 mkdir -p /target
