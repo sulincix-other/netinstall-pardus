@@ -147,6 +147,7 @@ sync && sleep 1
 
 ############### configure ###############
 # X11 keyboard
+mkdir -p /target/etc/X11/xorg.conf.d/
 cat > /target/etc/X11/xorg.conf.d/10-keyboard.conf << EOF
 Section "InputClass"
 Identifier "system-keyboard"
