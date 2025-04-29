@@ -3,6 +3,7 @@ if [ $$ -eq 1 ] ; then
     # kill init guard
     bash -ex /init
     echo "init dead!"
+    PS1=">>> " bash
     exec sleep inf
 fi
 source /etc/profile
@@ -194,5 +195,5 @@ chroot /target useradd -m pardus -c "Pardus" -G cdrom,floppy,sudo,audio,dip,vide
 sync && sleep 1
 
 ############### reboot ###############
-reboot -f
+busybox reboot -f
 echo "init done"
