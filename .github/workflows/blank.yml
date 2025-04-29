@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  schedule:
+    - cron: "0 0 * * 6"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: build
+        run: |
+          sudo apt install xorriso grub-pc-bin grub-efi mtools \
+              dosfstools e2fsprogs squashfs-tools debootstrap \
+              gcc wget curl unzip xz-utils zstd -y
+          sudo bash build.sh
+          sudo mkdir -p /output/
+          sudo mv work/*.iso /output/pardus-netinsall-$(date +%s)-$(uname -m).iso
+          sudo mv work/*.zip /output/pardus-netinstall-pxe-$(date +%s)-$(uname -m).zip
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: false
+          title: "Auto build"
+          files: |
+            /output/*
+
