@@ -33,6 +33,7 @@ chroot work/chroot apt install -yq --no-install-recommends \
 ###################### insert init ########################
 install ./init.sh work/chroot/init
 
+
 ###################### extract vmlinuz ########################
 mv work/chroot/boot/vmlinuz-* work/iso/linux
 rm -rf work/chroot/boot work/chroot/initrd.img* work/chroot/vmlinuz*
@@ -53,6 +54,12 @@ rm -rf  work/chroot/lib/modules/*/kernel/drivers/net/wireless
 rm -rf  work/chroot/lib/modules/*/kernel/drivers/video
 rm -rf  work/chroot/lib/modules/*/kernel/drivers/bluetooth
 rm -rf  work/chroot/lib/modules/*/kernel/sound
+
+###################### compress modules ########################
+find lib/modules/ -iname "*.ko" | sed "s/^/gzip -9 /g" | sh -x
+for kernel in $(ls lib/modules/) ; do
+    chroot work/chroot depmod -a $kernel
+done
 
 ###################### create initramfs ########################
 cd work/chroot

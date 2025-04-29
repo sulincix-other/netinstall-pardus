@@ -1,5 +1,7 @@
 #!/bin/bash
 source /etc/profile
+export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
 set -ex
 ############### mount sysfs ###############
 mount -t proc proc /proc
@@ -20,6 +22,7 @@ if [ "\$router" ]; then
   busybox ip route add default via \$router dev \$interface
 fi
 EOF
+chmod 755 /usr/share/udhcpc/default.script
 for dev in $(ls /sys/class/net/ | grep -v lo) ; do
     busybox ip link set up $dev || true
     busybox udhcpc -i $dev -s /usr/share/udhcpc/default.script || true
