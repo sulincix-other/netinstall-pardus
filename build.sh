@@ -74,3 +74,10 @@ EOF
 cd ../
 grub-mkrescue iso -o pardus-netinstall.iso --fonts="" --install-modules="linux normal fat all_video" --compress=xz --locales=""
 
+###################### create pxe image ########################
+mkdir -p pxe/boot/grub/
+grub-mknetdir --net-directory=./pxe
+install iso/linux ./pxe/linux
+install iso/initrd.img ./pxe/initrd.img
+install iso/boot/grub/grub.cfg pxe/boot/grub/grub.cfg
+zip -r pardus-pxe.zip pxe
