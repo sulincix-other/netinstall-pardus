@@ -66,7 +66,7 @@ terminal_output console
 terminal_input console
 menuentry "Pardus Network Install (Automated)" --class linux {
     linux /linux quiet
-    initrd /initd.img
+    initrd /initrd.img
 }
 EOF
 # create iso
