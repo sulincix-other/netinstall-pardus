@@ -75,8 +75,10 @@ for item in $(cat /proc/cmdline | tr " " "\n" | grep "=") ; do
 done
 
 ############### run init ###############
-wget -O /tmp/init.sh "$INIT"
-bash -ex /tmp/init.sh top
+if [ "$INIT" != "" ] ; then
+    wget -O /tmp/init.sh "$INIT"
+    bash -ex /tmp/init.sh
+fi
 
 
 # detect disk prefix
