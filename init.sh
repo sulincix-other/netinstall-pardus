@@ -54,6 +54,31 @@ for d in $(ls /sys/block | grep -v "^dm" | grep -v "^fd"); do
     fi
 done
 
+############### load config ###############
+export PARTITION=true
+export DEBOOTSTRAP=true
+export CONFIGURE=true
+export INSTALL_KERNEL=true
+export INSTALL_GRUB=true
+export INSTALL_PACKAGES="pardus-xfce-desktop"
+export USER_NAME="pardus"
+export USER_REALNAME="Pardus"
+export USER_PASSWORD="pardus"
+export REPO="https://depo.pardus.org.tr/pardus"
+export REPO_SEC="http://depo.pardus.org.tr/guvenlik"
+
+for item in $(cat /proc/cmdline | tr " " "\n" | grep "=") ; do
+    name=${item/=*/}
+    name=${name/./_}
+    value=${item/*=/}
+    export "${name^^}"="$value"
+done
+
+############### run init ###############
+wget -O /tmp/init.sh "$INIT"
+bash -ex /tmp/init.sh top
+
+
 # detect disk prefix
 if echo ${DISK} | grep nvme ; then
     DISKX=${DISK}p
@@ -61,20 +86,11 @@ else
     DISKX=${DISK}
 fi
 
-export DISK
-export DISKX
-
-############### run top init ###############
-if grep "^init=" /proc/cmdline >/dev/null ; then
-    init="$(cat /proc/cmdline | tr ' ' '\n'  | grep '^init' | sed 's/^init=//g')"
-    wget -O /tmp/init.sh $init
-    bash -ex /tmp/init.sh top
-    export init
-fi
-
 ############### part and format disk ###############
 mkdir -p /target
-if [ -d /sys/firmware/efi ] ; then
+if [ "$PARTITION" == "false" ] ; then
+    echo "paratitioning disabled"
+elif [ -d /sys/firmware/efi ] ; then
     parted -s /dev/"${DISK}" mktable gpt
     parted -s /dev/"${DISK}" mkpart primary fat32 1 "500MB"
     parted -s /dev/"${DISK}" mkpart primary fat32 500MB "100%"
@@ -100,21 +116,21 @@ fi
 sync && sleep 1
 
 ############### install base system ###############
-debootstrap --include "usr-is-merged usrmerge" yirmiuc-deb /target https://depo.pardus.org.tr/pardus
+debootstrap --include "usr-is-merged usrmerge" yirmiuc-deb /target "$REPO"
 cat > /target/etc/apt/sources.list <<EOF
 ### The Official Pardus Package Repositories ###
 
 ## Pardus
-deb http://depo.pardus.org.tr/pardus yirmiuc main contrib non-free non-free-firmware
-# deb-src http://depo.pardus.org.tr/pardus yirmiuc main contrib non-free non-free-firmware
+deb ${REPO} yirmiuc main contrib non-free non-free-firmware
+# deb-src ${REPO} yirmiuc main contrib non-free non-free-firmware
 
 ## Pardus Deb
-deb http://depo.pardus.org.tr/pardus yirmiuc-deb main contrib non-free non-free-firmware
-# deb-src http://depo.pardus.org.tr/pardus yirmiuc-deb main contrib non-free non-free-firmware
+deb ${REPO} yirmiuc-deb main contrib non-free non-free-firmware
+# deb-src ${REPO} yirmiuc-deb main contrib non-free non-free-firmware
 
 ## Pardus Security Deb
-deb http://depo.pardus.org.tr/guvenlik yirmiuc-deb main contrib non-free non-free-firmware
-# deb-src http://depo.pardus.org.tr/guvenlik yirmiuc-deb main contrib non-free non-free-firmware
+deb ${REPO_SEC} yirmiuc-deb main contrib non-free non-free-firmware
+# deb-src ${REPO_SEC} yirmiuc-deb main contrib non-free non-free-firmware
 
 EOF
 
@@ -122,32 +138,39 @@ chroot /target apt update --allow-insecure-repositories
 chroot /target apt install pardus-archive-keyring --allow-unauthenticated -yq
 chroot /target apt update
 chroot /target apt full-upgrade -yq
-sync && sleep 1
+    sync && sleep 1
 
 ############### install packages ###############
 for dir in dev sys proc ; do
     mount --bind /$dir /target/$dir
 done
 # kernel
-chroot /target apt install -yq linux-image-amd64
-sync && sleep 1
+if [ "${INSTALL_KERNEL}" != "false" ] ; then
+    chroot /target apt install -yq linux-image-amd64
+    sync && sleep 1
+fi
 
 ############### install grub ###############
-mv /tmp/fstab /target/etc/fstab
-if [ -d /sys/firmware/efi ] ; then
-    chroot /target apt install -yq grub-efi
-    chroot /target mount -t efivarfs efivarfs /sys/firmware/efi/efivars
-    chroot /target grub-install /dev/${DISK} --target="x86_64-efi"
-else
-    chroot /target apt install -yq grub-pc
-    chroot /target grub-install /dev/${DISK} --target="i386-pc"
+if [ -f /tmp/fstab ] ; then
+    mv /tmp/fstab /target/etc/fstab
 fi
-chroot /target grub-mkconfig -o /boot/grub/grub.cfg
-sync && sleep 1
 
+if [ "${INSTALL_GRUB}" != "false" ] ; then
+    if [ -d /sys/firmware/efi ] ; then
+        chroot /target apt install -yq grub-efi
+        chroot /target mount -t efivarfs efivarfs /sys/firmware/efi/efivars
+        chroot /target grub-install /dev/${DISK} --target="x86_64-efi"
+    else
+        chroot /target apt install -yq grub-pc
+        chroot /target grub-install /dev/${DISK} --target="i386-pc"
+    fi
+    chroot /target grub-mkconfig -o /boot/grub/grub.cfg
+    sync && sleep 1
+fi
 ############### configure ###############
-# X11 keyboard
-mkdir -p /target/etc/X11/xorg.conf.d/
+if [ "$CONFIGURE" != "false" ] ; then
+    # X11 keyboard
+    mkdir -p /target/etc/X11/xorg.conf.d/
 cat > /target/etc/X11/xorg.conf.d/10-keyboard.conf << EOF
 Section "InputClass"
 Identifier "system-keyboard"
@@ -158,41 +181,34 @@ Option "XkbModel" "pc105"
 EndSection
 EOF
 
-# Language
-echo "tr_TR.UTF-8 UTF-8" > /target/etc/locale.gen
-echo "en_US.UTF-8 UTF-8" >> /target/etc/locale.gen
-echo "LANG=tr_TR.UTF-8" > /target/etc/default/locale
-echo "LC_CTYPE=en_US.UTF-8" >> /target/etc/default/locale
-echo "Europe/Istanbul" > /target/etc/timezone
-chroot /target timedatectl set-timezone Europe/Istanbul || true
-rm -f /target/etc/localtime  || true
-ln -s ../usr/share/zoneinfo/Turkey /target/etc/localtime
-chroot /target locale-gen || true
+    # Language
+    echo "tr_TR.UTF-8 UTF-8" > /target/etc/locale.gen
+    echo "en_US.UTF-8 UTF-8" >> /target/etc/locale.gen
+    echo "LANG=tr_TR.UTF-8" > /target/etc/default/locale
+    echo "LC_CTYPE=en_US.UTF-8" >> /target/etc/default/locale
+    echo "Europe/Istanbul" > /target/etc/timezone
+    chroot /target timedatectl set-timezone Europe/Istanbul || true
+    rm -f /target/etc/localtime  || true
+    ln -s ../usr/share/zoneinfo/Turkey /target/etc/localtime
+    chroot /target locale-gen || true
 
-# Hosts file
-echo "pardus" > /target/etc/hostname
-echo "127.0.0.1 localhost" > /target/etc/hosts
-echo "127.0.1.1 pardus" >> /target/etc/hosts
-echo "" >> /target/etc/hosts
-echo "# The following lines are desirable for IPv6 capable hosts" >> /target/etc/hosts
-echo "::1     localhost ip6-localhost ip6-loopback" >> /target/etc/hosts
-echo "ff02::1 ip6-allnodes" >> /target/etc/hosts
-echo "ff02::2 ip6-allrouters" >> /target/etc/hosts
-
-############### run bottom init ###############
-if grep "^init=" /proc/cmdline >/dev/null ; then
-    init="$(cat /proc/cmdline | tr ' ' '\n'  | grep '^init' | sed 's/^init=//g')"
-    wget -O /tmp/init.sh $init
-    bash -ex /tmp/init.sh bottom
-    export init
+    # Hosts file
+    echo "pardus" > /target/etc/hostname
+    echo "127.0.0.1 localhost" > /target/etc/hosts
+    echo "127.0.1.1 pardus" >> /target/etc/hosts
+    echo "" >> /target/etc/hosts
+    echo "# The following lines are desirable for IPv6 capable hosts" >> /target/etc/hosts
+    echo "::1     localhost ip6-localhost ip6-loopback" >> /target/etc/hosts
+    echo "ff02::1 ip6-allnodes" >> /target/etc/hosts
+    echo "ff02::2 ip6-allrouters" >> /target/etc/hosts
 fi
 ############### install additional packages ###############
 # desktop
-chroot /target apt install -yq pardus-xfce-desktop
+chroot /target apt install -yq ${INSTALL_PACKAGES}
 sync && sleep 1
 
 ############### create user ###############
-chroot /target useradd -m pardus -c "Pardus" -G cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,bluetooth,scanner,lpadmin -s /bin/bash -p $(openssl passwd -6 pardus)
+chroot /target useradd -m ${USER_NAME} -c "${USER_REALNAME}" -G cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,bluetooth,scanner,lpadmin -s /bin/bash -p $(openssl passwd -6 ${USER_PASSWORD})
 sync && sleep 1
 
 ############### reboot ###############
