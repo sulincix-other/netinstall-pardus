@@ -26,10 +26,15 @@ chroot work/chroot apt install pardus-archive-keyring --allow-unauthenticated -y
 chroot work/chroot apt update
 chroot work/chroot apt full-upgrade -yq
 
+cat > work/chroot/etc/resolv.conf <<EOF
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+EOF
+
 ###################### install packages ########################
 chroot work/chroot apt install -yq --no-install-recommends \
      parted debootstrap busybox e2fsprogs linux-image-amd64 \
-     kmod nano dropbear
+     kmod nano dropbear dosfstools
 
 ###################### insert init ########################
 install ./init.sh work/chroot/init
