@@ -105,7 +105,7 @@ elif [ -d /sys/firmware/efi ] ; then
     yes | mkfs.ext4  /dev/${DISKX}2
     mount /dev/${DISKX}2 /target
     mkdir -p /target/boot/efi
-    mount /dev/${DISKX}2 /target/boot/efi
+    mount /dev/${DISKX}1 /target/boot/efi
     uuid_efi=$(blkid  /dev/${DISKX}1 | sed "s/ /\n/g" | grep "^UUID")
     uuid_rootfs=$(blkid  /dev/${DISKX}2 | sed "s/ /\n/g" | grep "^UUID")
     echo "${uuid_efi} /boot/efi vfat defaults,rw 0 0" > /tmp/fstab
