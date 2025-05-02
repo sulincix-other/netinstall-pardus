@@ -67,6 +67,8 @@ export USER_PASSWORD="pardus"
 export REPO="https://depo.pardus.org.tr/pardus"
 export REPO_SEC="http://depo.pardus.org.tr/guvenlik"
 
+export DISK
+
 for item in $(cat /proc/cmdline | tr " " "\n" | grep "=") ; do
     name=${item/=*/}
     name=${name/./_}
@@ -77,7 +79,7 @@ done
 ############### run init ###############
 if [ "$INIT" != "" ] ; then
     wget -O /tmp/init.sh "$INIT"
-    bash -ex /tmp/init.sh
+    source /tmp/init.sh
 fi
 
 
