@@ -30,14 +30,16 @@ busybox ip addr add \$ip/\$mask dev \$interface
 if [ "\$router" ]; then
   busybox ip route add default via \$router dev \$interface
 fi
+for i in \$dns ; do
+	echo "Adding DNS server \$i"
+	echo "nameserver \$i" >> /etc/resolv.conf
+	done
 EOF
 chmod 755 /usr/share/udhcpc/default.script
 for dev in $(ls /sys/class/net/ | grep -v lo) ; do
     busybox ip link set up $dev || true
     busybox udhcpc -i $dev -s /usr/share/udhcpc/default.script || true
 done
-echo "nameserver 1.1.1.1" > /etc/hosts
-echo "nameserver 8.8.8.8" >> /etc/hosts
 dropbear -R -E 2>/dev/null || true
 sync && sleep 1
 
