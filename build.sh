@@ -1,23 +1,25 @@
 #!/bin/bash
 set -ex
+export DIST="yirmibes"
+extra_packages=(dropbear nano)
 ###################### create base system ########################
 mkdir -p work/chroot work/iso
-ln -s sid /usr/share/debootstrap/scripts/yirmiuc-deb || true
-debootstrap --variant minbase --include "usr-is-merged usrmerge" yirmiuc-deb work/chroot https://depo.pardus.org.tr/pardus
+ln -s sid /usr/share/debootstrap/scripts/$DIST-deb || true
+debootstrap --variant minbase --include "usr-is-merged usrmerge" $DIST-deb work/chroot https://depo.pardus.org.tr/pardus
 cat > work/chroot/etc/apt/sources.list <<EOF
 ### The Official Pardus Package Repositories ###
 
 ## Pardus
-deb http://depo.pardus.org.tr/pardus yirmiuc main contrib non-free non-free-firmware
-# deb-src http://depo.pardus.org.tr/pardus yirmiuc main contrib non-free non-free-firmware
+deb http://depo.pardus.org.tr/pardus ${DIST} main contrib non-free non-free-firmware
+# deb-src http://depo.pardus.org.tr/pardus ${DIST} main contrib non-free non-free-firmware
 
 ## Pardus Deb
-deb http://depo.pardus.org.tr/pardus yirmiuc-deb main contrib non-free non-free-firmware
-# deb-src http://depo.pardus.org.tr/pardus yirmiuc-deb main contrib non-free non-free-firmware
+deb http://depo.pardus.org.tr/pardus ${DIST}-deb main contrib non-free non-free-firmware
+# deb-src http://depo.pardus.org.tr/pardus ${DIST}-deb main contrib non-free non-free-firmware
 
 ## Pardus Security Deb
-deb http://depo.pardus.org.tr/guvenlik yirmiuc-deb main contrib non-free non-free-firmware
-# deb-src http://depo.pardus.org.tr/guvenlik yirmiuc-deb main contrib non-free non-free-firmware
+deb http://depo.pardus.org.tr/guvenlik ${DIST}-deb main contrib non-free non-free-firmware
+# deb-src http://depo.pardus.org.tr/guvenlik ${DIST}-deb main contrib non-free non-free-firmware
 
 EOF
 
@@ -26,18 +28,32 @@ chroot work/chroot apt install pardus-archive-keyring --allow-unauthenticated -y
 chroot work/chroot apt update
 chroot work/chroot apt full-upgrade -yq
 
-cat > work/chroot/etc/resolv.conf <<EOF
-nameserver 8.8.8.8
-nameserver 8.8.4.4
-EOF
+cat /etc/resolv.conf >  work/chroot/etc/resolv.conf
 
 ###################### install packages ########################
 chroot work/chroot apt install -yq --no-install-recommends \
      parted debootstrap busybox e2fsprogs linux-image-amd64 \
-     kmod nano dropbear dosfstools
+     kmod dosfstools udev ${extra_packages[@]}
 
 ###################### insert init ########################
 install ./init.sh work/chroot/init
+
+###################### insert busybox networking ########################
+
+mkdir -p work/chroot/usr/share/udhcpc/
+cat > work/chroot/usr/share/udhcpc/default.script <<EOF
+#!/bin/busybox ash
+busybox ip addr add \$ip/\$mask dev \$interface
+
+if [ "\$router" ]; then
+  busybox ip route add default via \$router dev \$interface
+fi
+for i in \$dns ; do
+	echo "Adding DNS server \$i"
+	echo "nameserver \$i" >> /etc/resolv.conf
+done
+EOF
+chmod 755 work/chroot/usr/share/udhcpc/default.script
 
 ###################### extract vmlinuz ########################
 mv work/chroot/boot/vmlinuz-* work/iso/linux

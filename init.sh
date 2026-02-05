@@ -23,19 +23,6 @@ udevadm settle
 sync && sleep 1
 
 ############### networking ###############
-mkdir -p /usr/share/udhcpc/
-cat > /usr/share/udhcpc/default.script <<EOF
-busybox ip addr add \$ip/\$mask dev \$interface
-
-if [ "\$router" ]; then
-  busybox ip route add default via \$router dev \$interface
-fi
-for i in \$dns ; do
-	echo "Adding DNS server \$i"
-	echo "nameserver \$i" >> /etc/resolv.conf
-	done
-EOF
-chmod 755 /usr/share/udhcpc/default.script
 for dev in $(ls /sys/class/net/ | grep -v lo) ; do
     busybox ip link set up $dev || true
     busybox udhcpc -i $dev -s /usr/share/udhcpc/default.script || true
@@ -64,6 +51,7 @@ export INSTALL_KERNEL=true
 export INSTALL_GRUB=true
 export INSTALL_PACKAGES="pardus-xfce-desktop"
 export USER_NAME="pardus"
+export DIST="yirmibes"
 export USER_REALNAME="Pardus"
 export USER_PASSWORD="pardus"
 export REPO="https://depo.pardus.org.tr/pardus"
@@ -122,30 +110,31 @@ fi
 sync && sleep 1
 
 ############### install base system ###############
-debootstrap --include "usr-is-merged usrmerge" yirmiuc-deb /target "$REPO"
-cat > /target/etc/apt/sources.list <<EOF
+if [ "$DEBOOTSTRAP" == "true" ] ; then
+    debootstrap --include "usr-is-merged usrmerge" $DIST-deb /target "$REPO"
+    cat > /target/etc/apt/sources.list <<EOF
 ### The Official Pardus Package Repositories ###
 
 ## Pardus
-deb ${REPO} yirmiuc main contrib non-free non-free-firmware
-# deb-src ${REPO} yirmiuc main contrib non-free non-free-firmware
+deb ${REPO} ${DIST} main contrib non-free non-free-firmware
+# deb-src ${REPO} ${DIST} main contrib non-free non-free-firmware
 
 ## Pardus Deb
-deb ${REPO} yirmiuc-deb main contrib non-free non-free-firmware
-# deb-src ${REPO} yirmiuc-deb main contrib non-free non-free-firmware
+deb ${REPO} ${DIST}-deb main contrib non-free non-free-firmware
+# deb-src ${REPO} ${DIST}-deb main contrib non-free non-free-firmware
 
 ## Pardus Security Deb
-deb ${REPO_SEC} yirmiuc-deb main contrib non-free non-free-firmware
-# deb-src ${REPO_SEC} yirmiuc-deb main contrib non-free non-free-firmware
+deb ${REPO_SEC} ${DIST}-deb main contrib non-free non-free-firmware
+# deb-src ${REPO_SEC} ${DIST}-deb main contrib non-free non-free-firmware
 
 EOF
 
-chroot /target apt update --allow-insecure-repositories
-chroot /target apt install pardus-archive-keyring --allow-unauthenticated -yq
-chroot /target apt update
-chroot /target apt full-upgrade -yq
+    chroot /target apt update --allow-insecure-repositories
+    chroot /target apt install pardus-archive-keyring --allow-unauthenticated -yq
+    chroot /target apt update
+    chroot /target apt full-upgrade -yq
     sync && sleep 1
-
+fi
 ############### install packages ###############
 for dir in dev sys proc ; do
     mount --bind /$dir /target/$dir
@@ -214,7 +203,9 @@ chroot /target apt install -yq ${INSTALL_PACKAGES}
 sync && sleep 1
 
 ############### create user ###############
-chroot /target useradd -m ${USER_NAME} -c "${USER_REALNAME}" -G cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,bluetooth,scanner,lpadmin -s /bin/bash -p $(openssl passwd -6 ${USER_PASSWORD})
+if [ "$CONFIGURE" != "false" ] ; then
+    chroot /target useradd -m ${USER_NAME} -c "${USER_REALNAME}" -G cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,bluetooth,scanner,lpadmin -s /bin/bash -p $(openssl passwd -6 ${USER_PASSWORD})
+fi
 sync && sleep 1
 
 ############### reboot ###############
