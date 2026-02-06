@@ -20,7 +20,7 @@ jobs:
               gcc wget curl unzip xz-utils zstd -y
           sudo bash build.sh
           sudo mkdir -p /output/
-          sudo mv work/*.iso /output/pardus-netinsall-$(date +%s)-$(uname -m).iso
+          sudo mv work/*.iso /output/pardus-netinstall-$(date +%s)-$(uname -m).iso
           sudo mv work/*.zip /output/pardus-netinstall-pxe-$(date +%s)-$(uname -m).zip
 
       - uses: "marvinpinto/action-automatic-releases@latest"
